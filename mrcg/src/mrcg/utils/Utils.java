@@ -21,16 +21,16 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.velocity.VelocityContext;
+import org.apache.velocity.app.Velocity;
+
 import mrcg.domain.JavaClass;
 import mrcg.domain.JavaField;
 import mrcg.domain.JavaGetter;
 import mrcg.domain.JavaSetter;
 import mrcg.domain.JavaType;
 import mrcg.domain.Visibility;
-
-import org.apache.commons.lang3.StringUtils;
-import org.apache.velocity.VelocityContext;
-import org.apache.velocity.app.Velocity;
 
 public class Utils {
 	public static String getJustClassName(String className) {
@@ -42,23 +42,25 @@ public class Utils {
 		}
 	}
 
-	public static JavaField createBeanProperty(JavaClass jc, JavaField field) {
+	public static JavaField createBeanProperty(JavaClass jc, JavaField field, boolean addGetterSetter) {
 		jc.getFields().add(field);
 		if (field.getType().isBoolean()) {
 			jc.getMethods().add(new JavaGetter(field, "get"));
 		}
-		jc.getMethods().add(new JavaGetter(field));
-		jc.getMethods().add(new JavaSetter(field));
+		if (addGetterSetter) {
+			jc.getMethods().add(new JavaGetter(field));
+			jc.getMethods().add(new JavaSetter(field));
+		}
 		return field;
 	}
 	
 	
-	public static JavaField createBeanProperty(JavaClass jc, JavaType type, String name, Visibility visibility) {
+	public static JavaField createBeanProperty(JavaClass jc, JavaType type, String name, Visibility visibility, boolean addGetterSetter) {
 		JavaField jf = new JavaField();
 			jf.setVisibility(visibility);
 			jf.setName(name);
 			jf.setType(type);
-		return createBeanProperty(jc, jf);
+		return createBeanProperty(jc, jf, addGetterSetter);
 	}
 	
 	public static String camelCase(String s) {

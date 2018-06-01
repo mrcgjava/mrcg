@@ -44,16 +44,17 @@ public class MySqlScriptifier extends AbstractDBScripter {
 			return "bigint auto_increment";
 		}
 		switch(f.getDbType()) {
-			case Boolean:	return "boolean";
-			case Date:		return "datetime";
-			case Time:		return "time";
-			case Double:	return "numeric (" + f.getMinLength() + ", " + f.getMaxLength() + ")";
-			case Integer:	return "int";
-			case Long:		return "bigint";
-			case Text:		return "text";
-			case Varchar:	return "varchar(" + f.getMaxLength() + ")";
-			case JustDate:	return "date";
-			default:		throw new IllegalArgumentException("Unsupported type [" + f.getDbType() + "].");
+			case Boolean:			return "boolean";
+			case Date:				return "datetime";
+			case Time:				return "time";
+			case Double:			return "numeric (" + f.getMinLength() + ", " + f.getMaxLength() + ")";
+			case DoublePrecision:	return "double";
+			case Integer:			return "int";
+			case Long:				return "bigint";
+			case Text:				return "text";
+			case Varchar:			return "varchar(" + f.getMaxLength() + ")";
+			case JustDate:			return "date";
+			default:				throw new IllegalArgumentException("Unsupported type [" + f.getDbType() + "].");
 		}
 	}
 }

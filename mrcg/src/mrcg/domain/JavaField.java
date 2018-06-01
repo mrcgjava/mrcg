@@ -20,9 +20,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import mrcg.utils.Utils;
-
 import org.apache.commons.lang.StringUtils;
+
+import mrcg.utils.Utils;
 
 public class JavaField implements ImportsRequired, Writable {
 	private Visibility visibility = Visibility.Private;
@@ -44,6 +44,8 @@ public class JavaField implements ImportsRequired, Writable {
 	private boolean identifier;
 	private boolean order;
 	private boolean encrypted;
+	
+	private boolean excludedFromJavaOutput = false;
 	
 	private JavaClass references;
 	private String label;
@@ -101,6 +103,12 @@ public class JavaField implements ImportsRequired, Writable {
 	public void setOrder(boolean order) {this.order = order;}
 	public boolean isEncrypted() {return encrypted;}
 	public void setEncrypted(boolean encrypted) {this.encrypted = encrypted;}
+	public boolean isExcludedFromJavaOutput() {
+		return excludedFromJavaOutput;
+	}
+	public void setExcludedFromJavaOutput(boolean excludedFromJavaOutput) {
+		this.excludedFromJavaOutput = excludedFromJavaOutput;
+	}
 	public String getDefaultValue() {
 		return defaultValue;
 	}
@@ -208,6 +216,7 @@ public class JavaField implements ImportsRequired, Writable {
 	}
 	
 	public void out(PrintWriter out) throws IOException {
+		if (isExcludedFromJavaOutput()) return;
 		for(String annotation : annotations) {
 			out.println("\t" + annotation);
 		}

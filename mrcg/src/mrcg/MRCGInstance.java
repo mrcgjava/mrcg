@@ -94,6 +94,7 @@ public class MRCGInstance {
 	private String tagUtils;
 	private String transactionFilter;
 	private String exceptionHandler;
+	private String tableNameClass;
 	
 	
 	private Map<String, JavaClass> types = new HashMap<String, JavaClass>();
@@ -134,6 +135,7 @@ public class MRCGInstance {
  		this.tagUtils = getString("config.tagUtils");
  		this.transactionFilter = getString("config.transactionFilter");
  		this.exceptionHandler = getString("config.exceptionHandler");
+ 		this.tableNameClass = getString("config.tableNameClass");
  		
  		
 
@@ -239,8 +241,9 @@ public class MRCGInstance {
 		if (isSkipDatabaseEnabled()) return;
 		if (isDesignAlwaysModeEnabled() || (changed && isDesignModeEnabled())) {
 			System.out.print("Running SQL Script...");
+
 			Process process = Runtime.getRuntime().exec(
-				"sh runall.sh", 
+				"bash runall.sh", 
 				null,
 				new File(projectPath + "database/" + databaseType)
 			);
@@ -281,7 +284,9 @@ public class MRCGInstance {
 			map.put("databaseName", getString("database.name"));
 			map.put("libraryPackage", libraryPackage);
 			map.put("logicsPackage", logicsPackage);
+			map.put("logicFacade", JavaType.LOGIC_FACADE.getName());
 			map.put("digester", digester);
+			map.put("digesterClassName", new JavaType(digester).getJustClassName());
 			map.put("tagLibPrefix", tagLibPrefix);
 			map.put("tagUtils", tagUtils);
 			map.put("transactionFilter", transactionFilter);
@@ -315,8 +320,12 @@ public class MRCGInstance {
 				map.put("fields", jclass.getNonAutoHandledInstanceFields());
 //				map.put("mappings", convertToJspEditCode(jclass));
 				map.put("tagLibPrefix", tagLibPrefix);
-				File file = new File(webPath + "admin/" + jclass.getName().toLowerCase() + "/edit-generated.jsp");
-				velocity(file, getResourcePath("edit-jsp.vel"), map, true);
+				File file = new File(webPath + "admin/" + jclass.getName().toLowerCase() + "/edit.jsp");
+				velocity(file, getResourcePath("edit-jsp.vel"), map, false);
+
+				file = new File(webPath + "admin/" + jclass.getName().toLowerCase() + "/edit-layout.jsp");
+				velocity(file, getResourcePath("edit-layout-jsp.vel"), map, true);
+				
 			}
 		}
 	}
@@ -387,7 +396,7 @@ public class MRCGInstance {
 		genBase.addImport(JavaType.LOGIC_FACADE);
 		genBase.addImport(new JavaType("java.util.List"));
 		genBase.addImport(new JavaType("java.io.InputStream"));
-		Utils.createBeanProperty(genBase, new JavaType("net.sourceforge.stripes.action.ActionBeanContext"), "context", Visibility.Private);		
+		Utils.createBeanProperty(genBase, new JavaType("net.sourceforge.stripes.action.ActionBeanContext"), "context", Visibility.Private, true);		
 		
 		JavaMethod jspe = new JavaMethod(JavaType.BOOLEAN, "doesJspExist");
 		jspe.addParameter(new JavaParameter(JavaType.STRING, "jsp"));
@@ -477,6 +486,7 @@ public class MRCGInstance {
 				map.put("classLower", classLower);
 				map.put("libraryPackage", libraryPackage);
 				map.put("logicsPackage", logicsPackage);
+				map.put("logicFacade", JavaType.LOGIC_FACADE.getName());
 
 				String v = "@ValidateNestedProperties({\n";
 				for(JavaField jf : jclass.getFields()) {
@@ -528,8 +538,8 @@ public class MRCGInstance {
 				jc.setName("Generated" + name);
 				
 				if (jc.hasTableNameOverride()) {
-					jc.addAnnotation("@Table(\"" + jc.getTableName() + "\")");
-					jc.addImport(new JavaType(libraryPackage + ".logic.Table"));
+					jc.addAnnotation("@TableName(\"" + jc.getTableName() + "\")");
+					jc.addImport(new JavaType(tableNameClass));
 				}
 				
 				jc.addAnnotation("@SuppressWarnings(\"serial\")");
@@ -556,7 +566,8 @@ public class MRCGInstance {
 		for(JavaClass jc : types.values()) {
 			if (!jc.isEnum() && !jc.isMapping()) {
 				
-				jc.addImplements(new JavaType(getString("config.beanInterface")));
+				jc.setExtendsion(new JavaType(getString("config.beanInterface")));
+//				jc.addImplements(new JavaType(getString("config.beanInterface")));
 				
 				Visibility visibility = Visibility.Private;
 				String svisibility = getString("beans." + jc.getName() + ".fields-visibility");
@@ -567,15 +578,18 @@ public class MRCGInstance {
 				System.out.println("Creating bean '" + jc.getName() + "'");
 				jc.setTableName(getString("beans." + jc.getName() + ".tablename"));
 				
-				JavaField fid = Utils.createBeanProperty(jc, JavaType.LONG, "id", visibility);
+//				JavaField fid = new JavaField(JavaType.LONG, "id");
+				JavaField fid = Utils.createBeanProperty(jc, JavaType.LONG, "id", visibility, false);
 				fid.setDbType(DBType.Long);
 				fid.setOnView(true);
 				fid.setRequired(true);
+				fid.setExcludedFromJavaOutput(true);
 				Map<String, Object> map = getMap("beans." + jc.getName() + ".fields");
 				if (map == null) {
 					System.out.println("Couldn't find fields for beans." + jc.getName());
 					map = new HashMap<String, Object>();
 				}
+				
 				JavaField identitifierField = fid;
 				for(String key : map.keySet()) {
 					String def = map.get(key).toString();
@@ -588,13 +602,15 @@ public class MRCGInstance {
 //				jc.setAuditFieldsPresent(getBoolean("beans." + jc.getName() + ".audit-fields", true)
 				
 				if (getBoolean("beans." + jc.getName() + ".audit-fields", true)) {
-					JavaField createdAt = Utils.createBeanProperty(jc, getDateType(), "createdAt", visibility);
+					JavaField createdAt = Utils.createBeanProperty(jc, getDateType(), "createdAt", visibility, false);
 					createdAt.setOnView(true);
 					createdAt.setDbType(DBType.Date);
+					createdAt.setExcludedFromJavaOutput(true);
 					
-					JavaField updatedAt = Utils.createBeanProperty(jc, getDateType(), "updatedAt", visibility);
+					JavaField updatedAt = Utils.createBeanProperty(jc, getDateType(), "updatedAt", visibility, false);
 					updatedAt.setOnView(true);
 					updatedAt.setDbType(DBType.Date);
+					updatedAt.setExcludedFromJavaOutput(true);
 				}
 				
 				
@@ -605,12 +621,16 @@ public class MRCGInstance {
 				}
 				
 				JavaMethod jm = new JavaMethod(JavaType.OBJECT, "getIdentifierLabel");
-				jm.setBody("\t\treturn " + identitifierField.getName() + ";");
+				String returnValue = identitifierField.getName();
+				if (identitifierField == fid) {
+					returnValue = "getId()";
+				}
+				jm.setBody("\t\treturn " + returnValue + ";");
 				jc.addMethod(jm);
 				
-				jm = new JavaMethod(JavaType.PBOOLEAN, "isNew");
-				jm.setBody("\t\treturn id == null;");
-				jc.addMethod(jm);
+//				jm = new JavaMethod(JavaType.PBOOLEAN, "isNew");
+//				jm.setBody("\t\treturn id == null;");
+//				jc.addMethod(jm);
 				
 				
 				map = getMap("beans." + jc.getName() + ".indexes");
@@ -711,7 +731,7 @@ public class MRCGInstance {
 				);
 			}
 			
-			Utils.createBeanProperty(jclass, field);
+			Utils.createBeanProperty(jclass, field, true);
 		}
 		
 		field.setVisibility(visibility);		
@@ -840,13 +860,13 @@ public class MRCGInstance {
 				JavaType jtl = new JavaType("java.util.List");
 				jtl.addType(jclass.getJavaType());
 				jmethod = new JavaMethod(jtl, "get" + Utils.pluralize(name));
-				jmethod.setBody("\t\treturn " + JavaType.LOGIC_FACADE.getJustClassName() + ".list(" + jclass.getName() + ".class, \"" + Utils.toDatabaseFormat(refClass.getName()) + "_id\", id);");
+				jmethod.setBody("\t\treturn " + JavaType.LOGIC_FACADE.getJustClassName() + ".list(" + jclass.getName() + ".class, \"" + Utils.toDatabaseFormat(refClass.getName()) + "_id\", getId());");
 				refClass.addMethod(jmethod);
 			}
 			
 		}
 		jfield.setReferences(refClass);
-		Utils.createBeanProperty(jclass, jfield);
+		Utils.createBeanProperty(jclass, jfield, true);
 		return jfield;
 
 	}
@@ -1083,7 +1103,10 @@ public class MRCGInstance {
 		file.getParentFile().mkdirs();
 		
 		StringWriter swriter = new StringWriter();
-		InputStream in = getClass().getClassLoader().getResourceAsStream(template);
+//		InputStream in = getClass().getClassLoader().getResourceAsStream(template);
+		InputStream in = new FileInputStream(template);
+		
+		
 		VelocityEngine ve = new VelocityEngine();
 		VelocityContext context = new VelocityContext(map);
 		ve.evaluate(context, new PrintWriter(swriter), "", new InputStreamReader(in));
@@ -1099,7 +1122,7 @@ public class MRCGInstance {
 			PrintWriter out = new PrintWriter(new FileOutputStream(file));
 			out.print(newContent);
 			out.flush();
-			out.close();		
+			out.close();
 		}
 	}
 	
